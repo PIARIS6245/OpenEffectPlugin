@@ -12,8 +12,8 @@ import org.bukkit.util.Vector;
 import java.util.*;
 
 /**
- * 行ごとに ArmorStand を使用し、上端(Top)から下方向へ積む。
- * 再生成時に viewer 可視性を必ず再適用（showEntity/hideEntity）。
+ * ターゲットごとに行単位の ArmorStand を「上端から下方向へ」積む。
+ * 可視性は viewer 単位＆「自分自身の行は常に非表示」。
  */
 public class DisplayManager {
 
@@ -26,8 +26,7 @@ public class DisplayManager {
 
     // config
     private final double offRight, offForward;
-    private final double topUp;     // 上端の高さ
-    private final double stepDown;  // 下方向の行間
+    private final double topUp, stepDown;
     private final boolean showPlayerName;
     private final String language;
 
@@ -37,12 +36,11 @@ public class DisplayManager {
         this.offRight    = cfg.getDouble("offsetRight",   0.0);
         this.offForward  = cfg.getDouble("offsetForward", 0.0);
         this.topUp       = cfg.getDouble("box.topUp",     1.90);
-        this.stepDown    = cfg.getDouble("box.step",      0.22);
+        this.stepDown    = cfg.getDouble("box.step",      0.20);
         this.showPlayerName = cfg.getBoolean("showPlayerName", false);
         this.language    = cfg.getString("language", "ja");
     }
 
-    // --- 管理 ---
     public void ensureAllTargets() {
         for (Player p : Bukkit.getOnlinePlayers()) ensureTarget(p);
     }
@@ -53,7 +51,8 @@ public class DisplayManager {
         if (displays.get(target.getUniqueId()).isEmpty()) {
             ArmorStand as = spawnLine(target, 0);
             displays.get(target.getUniqueId()).add(as);
-            reapplyVisibilityFor(as);
+            // 可視性適用（自分には非表示）
+            reapplyVisibilityForTarget(target.getUniqueId(), as);
         }
     }
 
@@ -77,7 +76,6 @@ public class DisplayManager {
         }
     }
 
-    // --- 更新 ---
     public void updateAll() {
         for (Player target : Bukkit.getOnlinePlayers()) updateOne(target);
         displays.keySet().removeIf(id -> Bukkit.getPlayer(id) == null);
@@ -91,18 +89,16 @@ public class DisplayManager {
         UUID id = target.getUniqueId();
 
         if (!lines.equals(lastLines.getOrDefault(id, Collections.emptyList()))) {
-            // 内容が変わった→作り直し（ゴースト/上書き不具合回避）
             removeAllLines(id);
             List<ArmorStand> list = displays.computeIfAbsent(id, k -> new ArrayList<>());
             for (int i = 0; i < lines.size(); i++) {
                 ArmorStand as = spawnLine(target, i);
                 as.customName(Component.text(lines.get(i)));
                 list.add(as);
-                reapplyVisibilityFor(as); // 新規行に可視性適用
+                reapplyVisibilityForTarget(id, as); // 新規行の可視性
             }
             lastLines.put(id, new ArrayList<>(lines));
         } else {
-            // 位置だけ追従
             List<ArmorStand> list = displays.get(id);
             if (list != null) {
                 for (int i = 0; i < list.size(); i++) {
@@ -114,28 +110,36 @@ public class DisplayManager {
         }
     }
 
-    /** viewer 単位の show/hide を即反映（ON/OFFトグル対応） */
+    /**
+     * viewer の可視性を一括反映。
+     * show=true でも「viewer自身のターゲット行」は常に非表示にする。
+     */
     public void applyVisibility(Player viewer, boolean show) {
-        for (List<ArmorStand> list : displays.values()) {
-            for (ArmorStand as : list) {
+        UUID vid = viewer.getUniqueId();
+        for (Map.Entry<UUID, List<ArmorStand>> e : displays.entrySet()) {
+            UUID targetId = e.getKey();
+            boolean showThis = show && !vid.equals(targetId) && core.canUse(viewer);
+            for (ArmorStand as : e.getValue()) {
                 if (as == null || as.isDead()) continue;
-                if (show) viewer.showEntity(core, as);
+                if (showThis) viewer.showEntity(core, as);
                 else viewer.hideEntity(core, as);
             }
         }
     }
 
-    private void reapplyVisibilityFor(ArmorStand as) {
+    /** 特定ターゲットの行を、全 viewer に対して再適用（自分には非表示） */
+    private void reapplyVisibilityForTarget(UUID targetId, ArmorStand as) {
         for (Player v : Bukkit.getOnlinePlayers()) {
-            if (core.canUse(v)) v.showEntity(core, as);
+            boolean show = core.canUse(v) && !v.getUniqueId().equals(targetId);
+            if (show) v.showEntity(core, as);
             else v.hideEntity(core, as);
         }
     }
 
-    // --- 位置計算：上端(Top)から下方向へ積む ---
+    // ==== 位置計算：上端から下に積む ====
     private Location linePos(Player target, int index) {
-        Location top = topPos(target);                // 上端
-        return top.add(0, -stepDown * index, 0);      // 下に向かって index 行分下げる
+        Location top = topPos(target);
+        return top.add(0, -stepDown * index, 0);
     }
 
     private ArmorStand spawnLine(Player target, int index) {
@@ -148,11 +152,10 @@ public class DisplayManager {
             ent.setGravity(false);
             ent.setCustomNameVisible(true);
             ent.customName(Component.text(""));
-            ent.setVisibleByDefault(false); // viewer単位で制御
+            ent.setVisibleByDefault(false); // viewer単位
         });
     }
 
-    /** 上端（赤枠の上辺）の基準位置 */
     private Location topPos(Player target) {
         Location eye = target.getEyeLocation();
         Vector right = rightOf(eye);
@@ -173,7 +176,7 @@ public class DisplayManager {
         return new Vector(-fwd.getZ(), 0, fwd.getX()).normalize();
     }
 
-    // --- 表示テキスト ---
+    // ==== 表示テキスト ====
     private List<String> buildEffectLines(Player target) {
         List<String> out = new ArrayList<>();
         if (showPlayerName) out.add(target.getName());
@@ -191,6 +194,7 @@ public class DisplayManager {
             out.add(type + " " + roman(lv) + " " + m);
         }
         return out;
+        // ※ 行が多すぎてネームタグと被る場合は config の box.topUp / box.step を調整
     }
 
     private String effectName(PotionEffect eff) {

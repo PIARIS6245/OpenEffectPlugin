@@ -1,13 +1,17 @@
 name: OpenEffect
 main: net.example.openeffect.OpenEffectPlugin
-version: 1.0.1
+version: 1.2.0
 api-version: '1.20'
+
 commands:
   open:
-    description: OpenEffect toggle
+    description: Toggle OpenEffect
     usage: /open effect <on|off>
+  openeffect:
+    description: Manage OpenEffect members/owners
+    usage: /openeffect <add|remove|members|owners|all> ...
 permissions:
-  openeffect.admin:
-    default: op
   openeffect.toggle:
     default: false
+  openeffect.admin:
+    default: op

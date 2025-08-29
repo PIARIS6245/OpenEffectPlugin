@@ -1,18 +1,20 @@
-# OpenEffect config
-enabled: []
+# 永続データ
+enabled: []   # /open effect on の保持（UUID文字列）
+owners:  []   # 共同管理者（UUID文字列）
+members: []   # 一般メンバー（UUID文字列）
 
 # ===== 表示更新 =====
-updateTicks: 1           # 毎tickで滑らか追従
-updateOnMove: true       # 動いた瞬間にも即追従
+updateTicks: 1
+updateOnMove: true
 
 # ===== 位置（プレイヤー基準）=====
-offsetRight:   0.00      # 横のずらし（+で右）
-offsetForward: 0.00      # 前後のずらし（+で前）
+offsetRight:   0.00
+offsetForward: 0.00
 
-# 赤枠（表示領域）設定：上端から下方向へ積む
+# 赤枠（表示領域）設定：上端から下方向へ縦積み
 box:
-  topUp: 1.90            # 頭からの上方向オフセット（上端の高さ）
-  step: 0.22             # 1行ごとに下げる間隔（値を小さくすると赤枠が“詰まる”）
+  topUp: 1.90
+  step:  0.20
 
 # ===== 表示 =====
 showPlayerName: false

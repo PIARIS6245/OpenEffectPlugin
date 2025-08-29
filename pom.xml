@@ -1,16 +1,12 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project>
   <modelVersion>4.0.0</modelVersion>
-
   <groupId>net.example</groupId>
   <artifactId>OpenEffect</artifactId>
-  <version>1.0.1</version>
-
+  <version>1.1.0</version>
   <properties>
-    <java.version>17</java.version>
-    <maven.compiler.source>${java.version}</maven.compiler.source>
-    <maven.compiler.target>${java.version}</maven.compiler.target>
+    <maven.compiler.release>17</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <paper.mc.version>1.21.4</paper.mc.version> <!-- 1.21系ならOK -->
   </properties>
 
   <repositories>
@@ -21,30 +17,39 @@
   </repositories>
 
   <dependencies>
-    <!-- 1.21.4 でビルド（1.21.7でも互換）。providedなので実サーバー側に従う -->
     <dependency>
       <groupId>io.papermc.paper</groupId>
       <artifactId>paper-api</artifactId>
-      <version>1.21.4-R0.1-SNAPSHOT</version>
+      <version>${paper.mc.version}-R0.1-SNAPSHOT</version>
       <scope>provided</scope>
     </dependency>
   </dependencies>
 
   <build>
     <plugins>
+      <!-- release=17 を使い、source/targetの警告を消す -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-shade-plugin</artifactId>
-        <version>3.5.0</version>
-        <executions>
-          <execution>
-            <phase>package</phase>
-            <goals><goal>shade</goal></goals>
-            <configuration>
-              <createDependencyReducedPom>false</createDependencyReducedPom>
-            </configuration>
-          </execution>
-        </executions>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+        <configuration>
+          <release>${maven.compiler.release}</release>
+          <encoding>${project.build.sourceEncoding}</encoding>
+          <!-- 非推奨APIの詳細を見たい時だけ有効化
+          <compilerArgs>
+            <arg>-Xlint:deprecation</arg>
+          </compilerArgs> -->
+        </configuration>
+      </plugin>
+
+      <!-- リソースコピー時のエンコーディングを明示 -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-resources-plugin</artifactId>
+        <version>3.3.1</version>
+        <configuration>
+          <encoding>${project.build.sourceEncoding}</encoding>
+        </configuration>
       </plugin>
     </plugins>
   </build>
